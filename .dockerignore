@@ -1,0 +1,17 @@
+# Docker ignore file
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+ENV/
+.idea/
+.vscode/
+.git/
+.dockerignore
+Dockerfile
+db.sqlite3
+media/
+static/
+docker/postgres-data/
