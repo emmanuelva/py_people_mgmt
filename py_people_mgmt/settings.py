@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_htmx',
     'core.apps.CoreConfig',
     'people.apps.PeopleConfig'
 ]
@@ -51,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_htmx.middleware.HtmxMiddleware',
 ]
 
 ROOT_URLCONF = 'py_people_mgmt.urls'
@@ -114,6 +116,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/6.0/topics/auth/customizing/
 
 AUTH_USER_MODEL = 'core.User'
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = '/admin/'
+LOGOUT_REDIRECT_URL = 'login'
+
+# Email
+# Password reset emails are printed to the console in development.
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'
+)
 
 
 # Internationalization
