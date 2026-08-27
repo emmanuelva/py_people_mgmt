@@ -23,4 +23,4 @@ class PersonViewSet(StaffRequiredForCreateMixin, viewsets.ModelViewSet):
             tag_names = [tag.strip() for tag in tags.split(',') if tag.strip()]
             queryset = queryset.filter(tags__name__in=tag_names).distinct()
 
-        return queryset.order_by('last_name', 'first_name')
+        return queryset.order_by('name')

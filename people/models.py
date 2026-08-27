@@ -1,6 +1,15 @@
+import re
+import unicodedata
+
 from django.db import models
 
 from core.models import SoftDeleteModel
+
+
+def normalize_name(name):
+    name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
+    name = re.sub(r'[^a-zA-Z0-9\s]', '', name)
+    return re.sub(r'\s+', ' ', name).strip().lower()
 
 
 class Tag(SoftDeleteModel):
@@ -20,9 +29,8 @@ class Person(SoftDeleteModel):
         INACTIVE = 'inactive', 'Inactive'
         MEMBER = 'member', 'Member'
 
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
-    second_last_name = models.CharField(max_length=150, blank=True)
+    name = models.CharField(max_length=250)
+    normalized_name = models.CharField(max_length=250, editable=False, blank=True)
     dob = models.DateField(null=True, blank=True)
     day_of_birth = models.SmallIntegerField(null=True, blank=True, editable=False)
     month_of_birth = models.SmallIntegerField(null=True, blank=True, editable=False)
@@ -33,6 +41,7 @@ class Person(SoftDeleteModel):
     tags = models.ManyToManyField(Tag, related_name='people', blank=True)
 
     def save(self, *args, **kwargs):
+        self.normalized_name = normalize_name(self.name)
         if self.dob:
             self.day_of_birth = self.dob.day
             self.month_of_birth = self.dob.month
@@ -42,4 +51,4 @@ class Person(SoftDeleteModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.first_name} {self.last_name}'
+        return self.name

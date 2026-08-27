@@ -19,9 +19,8 @@ class PersonSerializer(serializers.ModelSerializer):
         model = Person
         fields = [
             'id',
-            'first_name',
-            'last_name',
-            'second_last_name',
+            'name',
+            'normalized_name',
             'dob',
             'day_of_birth',
             'month_of_birth',
@@ -33,4 +32,6 @@ class PersonSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'day_of_birth', 'month_of_birth', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'normalized_name', 'day_of_birth', 'month_of_birth', 'created_at', 'updated_at',
+        ]
