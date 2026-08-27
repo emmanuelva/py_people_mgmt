@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import os
 
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -39,7 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_htmx',
+    'rest_framework',
+    'drf_spectacular',
     'core.apps.CoreConfig',
     'people.apps.PeopleConfig'
 ]
@@ -52,7 +54,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_htmx.middleware.HtmxMiddleware',
 ]
 
 ROOT_URLCONF = 'py_people_mgmt.urls'
@@ -116,9 +117,29 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/6.0/topics/auth/customizing/
 
 AUTH_USER_MODEL = 'core.User'
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = '/admin/'
-LOGOUT_REDIRECT_URL = 'login'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'People Manager API',
+    'DESCRIPTION': 'API for managing the people catalog.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 
 # Email
 # Password reset emails are printed to the console in development.

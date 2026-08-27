@@ -15,47 +15,17 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path(
-        '',
-        auth_views.LoginView.as_view(template_name='core/login.html'),
-        name='login',
-    ),
-    path(
-        'logout/',
-        auth_views.LogoutView.as_view(),
-        name='logout',
-    ),
-    path(
-        'password_reset/',
-        auth_views.PasswordResetView.as_view(
-            template_name='core/password_reset_form.html'
-        ),
-        name='password_reset',
-    ),
-    path(
-        'password_reset/done/',
-        auth_views.PasswordResetDoneView.as_view(
-            template_name='core/password_reset_done.html'
-        ),
-        name='password_reset_done',
-    ),
-    path(
-        'reset/<uidb64>/<token>/',
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name='core/password_reset_confirm.html'
-        ),
-        name='password_reset_confirm',
-    ),
-    path(
-        'reset/done/',
-        auth_views.PasswordResetCompleteView.as_view(
-            template_name='core/password_reset_complete.html'
-        ),
-        name='password_reset_complete',
-    ),
+    path('api/people/', include('people.urls')),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
