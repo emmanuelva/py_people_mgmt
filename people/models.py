@@ -3,6 +3,13 @@ from django.db import models
 from core.models import SoftDeleteModel
 
 
+class Tag(SoftDeleteModel):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Person(SoftDeleteModel):
     class Gender(models.TextChoices):
         MALE = 'male', 'Male'
@@ -23,6 +30,7 @@ class Person(SoftDeleteModel):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
+    tags = models.ManyToManyField(Tag, related_name='people', blank=True)
 
     def save(self, *args, **kwargs):
         if self.dob:
