@@ -29,13 +29,22 @@ class Person(SoftDeleteModel):
         INACTIVE = 'inactive', 'Inactive'
         MEMBER = 'member', 'Member'
 
+    class MaritalStatus(models.TextChoices):
+        SINGLE = 'single', 'Single'
+        MARRIED = 'married', 'Married'
+        DIVORCED = 'divorced', 'Divorced'
+        WIDOWED = 'widowed', 'Widowed'
+        SEPARATED = 'separated', 'Separated'
+
     name = models.CharField(max_length=250)
     normalized_name = models.CharField(max_length=250, editable=False, blank=True)
+    external_id = models.IntegerField(null=True, blank=True, unique=True)
     dob = models.DateField(null=True, blank=True)
     day_of_birth = models.SmallIntegerField(null=True, blank=True, editable=False)
     month_of_birth = models.SmallIntegerField(null=True, blank=True, editable=False)
     gender = models.CharField(max_length=10, choices=Gender.choices, default=Gender.MALE)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    marital_status = models.CharField(max_length=10, choices=MaritalStatus.choices, default=MaritalStatus.SINGLE)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     tags = models.ManyToManyField(Tag, related_name='people', blank=True)
