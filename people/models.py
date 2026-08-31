@@ -49,6 +49,11 @@ class Person(SoftDeleteModel):
     email = models.EmailField(blank=True)
     tags = models.ManyToManyField(Tag, related_name='people', blank=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['month_of_birth', 'day_of_birth'], name='people_birthdate_idx'),
+        ]
+
     def save(self, *args, **kwargs):
         self.normalized_name = normalize_name(self.name)
         if self.dob:

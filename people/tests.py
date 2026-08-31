@@ -1,7 +1,8 @@
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -91,6 +92,21 @@ class PersonAPITests(APITestCase):
         response = self.client.delete(f'/api/people/{person.id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
+    def test_retrieve_returns_computed_age(self):
+        today = timezone.localdate()
+        dob = date(today.year - 30, 1, 1)
+        person = Person.objects.create(name='Birthday Person', dob=dob)
+
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get(f'/api/people/{person.id}/')
+        self.assertEqual(response.data['age'], 30)
+
+    def test_retrieve_returns_null_age_when_dob_missing(self):
+        person = Person.objects.create(name='No Dob Person')
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get(f'/api/people/{person.id}/')
+        self.assertIsNone(response.data['age'])
+
     def test_deleted_person_is_soft_deleted_and_excluded_from_api(self):
         person = Person.objects.create(name='To Delete')
         self.client.force_authenticate(self.regular_user)
@@ -100,7 +116,7 @@ class PersonAPITests(APITestCase):
         self.assertIsNotNone(person.deleted_at)
 
         list_response = self.client.get('/api/people/')
-        names = [p['name'] for p in list_response.data]
+        names = [p['name'] for p in list_response.data['results']]
         self.assertNotIn('To Delete', names)
 
         detail_response = self.client.get(f'/api/people/{person.id}/')
@@ -130,7 +146,7 @@ class PersonAPITests(APITestCase):
 
         self.client.force_authenticate(self.regular_user)
         response = self.client.get('/api/people/', {'tags': 'vip'})
-        names = [p['name'] for p in response.data]
+        names = [p['name'] for p in response.data['results']]
         self.assertIn('VIP Person', names)
         self.assertNotIn('Other Person', names)
 
@@ -144,7 +160,7 @@ class PersonAPITests(APITestCase):
 
         self.client.force_authenticate(self.regular_user)
         response = self.client.get('/api/people/', {'tags': 'vip,donor'})
-        names = sorted(p['name'] for p in response.data)
+        names = sorted(p['name'] for p in response.data['results'])
         self.assertEqual(names, ['Alice', 'Bob'])
 
     def test_list_is_ordered_by_name(self):
@@ -154,8 +170,88 @@ class PersonAPITests(APITestCase):
 
         self.client.force_authenticate(self.regular_user)
         response = self.client.get('/api/people/')
-        names = [p['name'] for p in response.data]
+        names = [p['name'] for p in response.data['results']]
         self.assertEqual(names, ['Alice', 'Bob', 'Charlie'])
+
+    def test_list_returns_full_tag_details(self):
+        vip_person = Person.objects.create(name='VIP Person')
+        vip_person.tags.set([self.tag])
+
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get('/api/people/')
+        person_data = next(p for p in response.data['results'] if p['name'] == 'VIP Person')
+        self.assertEqual(person_data['tags'], [{
+            'id': str(self.tag.id),
+            'name': self.tag.name,
+            'created_at': person_data['tags'][0]['created_at'],
+            'updated_at': person_data['tags'][0]['updated_at'],
+        }])
+
+    def test_list_excludes_soft_deleted_tags_from_tag_details(self):
+        deleted_tag = Tag.objects.create(name='obsolete')
+        person = Person.objects.create(name='Tagged Person')
+        person.tags.set([self.tag, deleted_tag])
+        deleted_tag.delete()
+
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get('/api/people/')
+        person_data = next(p for p in response.data['results'] if p['name'] == 'Tagged Person')
+        tag_names = [t['name'] for t in person_data['tags']]
+        self.assertEqual(tag_names, ['vip'])
+
+    def test_list_pagination_page_and_size(self):
+        for i in range(5):
+            Person.objects.create(name=f'Person {i}')
+
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get('/api/people/', {'size': 2, 'page': 2})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 5)
+        self.assertEqual(len(response.data['results']), 2)
+        names = [p['name'] for p in response.data['results']]
+        self.assertEqual(names, ['Person 2', 'Person 3'])
+
+    def test_birthdays_requires_authentication(self):
+        response = self.client.get('/api/people/birthdays/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_birthdays_returns_current_and_next_week(self):
+        today = timezone.localdate()
+        current_monday = today - timedelta(days=today.weekday())
+        current_sunday = current_monday + timedelta(days=6)
+        next_monday = current_monday + timedelta(days=7)
+        outside_date = current_monday - timedelta(days=1)
+
+        def dob_for(d):
+            return date(2000, d.month, d.day)
+
+        Person.objects.create(name='Current Birthday', dob=dob_for(current_sunday))
+        Person.objects.create(name='Next Birthday', dob=dob_for(next_monday))
+        Person.objects.create(name='Outside Birthday', dob=dob_for(outside_date))
+
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get('/api/people/birthdays/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        current_names = [p['name'] for p in response.data['current']]
+        next_names = [p['name'] for p in response.data['next']]
+        self.assertIn('Current Birthday', current_names)
+        self.assertIn('Next Birthday', next_names)
+        self.assertIn('age', response.data['current'][0])
+        self.assertNotIn('Current Birthday', next_names)
+        self.assertNotIn('Next Birthday', current_names)
+        self.assertNotIn('Outside Birthday', current_names + next_names)
+
+    def test_birthdays_excludes_deleted_people(self):
+        today = timezone.localdate()
+        current_monday = today - timedelta(days=today.weekday())
+        deleted_person = Person.objects.create(name='Deleted Birthday', dob=date(2000, current_monday.month, current_monday.day))
+        deleted_person.delete()
+
+        self.client.force_authenticate(self.regular_user)
+        response = self.client.get('/api/people/birthdays/')
+        current_names = [p['name'] for p in response.data['current']]
+        self.assertNotIn('Deleted Birthday', current_names)
 
 
 class TagAPITests(APITestCase):
@@ -195,8 +291,6 @@ class TagAPITests(APITestCase):
         self.assertNotIn('obsolete', names)
 
     def test_tags_route_is_not_shadowed_by_person_detail_route(self):
-        # Regression test: 'tags/' must resolve to TagViewSet's list action, not be
-        # swallowed by PersonViewSet's '<pk>/' detail route (see CLAUDE.md).
         self.client.force_authenticate(self.regular_user)
         response = self.client.get('/api/people/tags/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
